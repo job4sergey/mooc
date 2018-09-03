@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+
+# VSCode settings
+KernelProgramingStepik/kobjects/.vscode/c_cpp_properties.json
+KernelProgramingStepik/kobjects/.vscode/settings.json
