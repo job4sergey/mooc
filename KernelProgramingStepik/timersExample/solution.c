@@ -9,7 +9,7 @@
 static struct kt_date {
   struct hrtimer timer;
   ktime_t period;
-};
+} *data;
 
 static enum hrtimer_restart kfun(struct hrtimer *val) {
   pr_info("Function was triggered by timer.\n");
