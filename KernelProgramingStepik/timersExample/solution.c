@@ -1,42 +1,50 @@
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/printk.h>
-#include <linux/moduleparam.h>
-#include <linux/ktime.h>
+#include <checker.h>
 #include <linux/hrtimer.h>
+#include <linux/init.h>
+#include <linux/ktime.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
+#include <linux/printk.h>
 #include <linux/slab.h>
+#include <linux/time64.h>
 
-static struct kt_date {
-  struct hrtimer timer;
-  ktime_t period;
-} *data;
+
+#define NSEC_PER_MSEC	1000000L
+
+static struct hrtimer hr_timer;
+static ktime_t ktime;
+
+static unsigned long delays[1024] = {0};
+static int arrcnt;
+module_param_array(delays, long, &arrcnt, 0660);
+
+static int delay_cnt = 0;
 
 static enum hrtimer_restart kfun(struct hrtimer *val) {
-  pr_info("Function was triggered by timer.\n");
-  return HRTIMER_NORESTART;
+  delay_cnt++;
+  check_timer();
+  if (delay_cnt >= arrcnt) {
+    return HRTIMER_NORESTART;
+  }
+  ktime = ktime_set(0, delays[delay_cnt] * NSEC_PER_MSEC);
+  hrtimer_forward_now(&hr_timer, ktime_set(0, delays[delay_cnt] * NSEC_PER_MSEC));
+  return HRTIMER_RESTART;
 }
-
-static long delays[1024] = {0};
-static int arrcnt = 0;
-module_param_array(delays, long, &arrcnt, 0660); 
 
 // Init function will be called on the module start up.
 static int __init init_solution(void) {
-  pr_info("Start loading module.\n");
-  data = kmalloc(sizeof(struct kt_date), GFP_KERNEL);
-  data->period = ktime_set(1, 0); // 1 sec
+  ktime = ktime_set(0, delays[0] * NSEC_PER_MSEC);
 
-  hrtimer_init(&data->timer, CLOCK_REALTIME, HRTIMER_MODE_REL);
-  data->timer.function = kfun;
-  hrtimer_start(&data->timer, data->period, HRTIMER_MODE_REL);
-
+  hrtimer_init(&hr_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+  hr_timer.function = &kfun;
+  check_timer();
+  hrtimer_start(&hr_timer, ktime, HRTIMER_MODE_REL);
   return 0;
 }
 
 // Cleanup function will be called on module unload.
 static void __exit cleanup_solution(void) {
-  kfree(data);
-  data = NULL;
+  	hrtimer_cancel(&hr_timer);
 }
 
 // Specify what functions to call on module load and unload.
